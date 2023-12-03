@@ -46,6 +46,36 @@ type state =
   | Newline_before_message_body
   | Message_body
 
+let state_to_string (state : state) =
+  match state with
+  | Method_first -> "Method_first"
+  | Method_rest -> "Method_rest"
+  | Space_after_method_first -> "Space_after_method_first"
+  | Space_after_method_rest -> "Space_after_method_rest"
+  | Path_element_first -> "Path_element_first"
+  | Path_element_rest -> "Path_element_rest"
+  | Space_after_target_first -> "Space_after_target_first"
+  | Space_after_target_rest -> "Space_after_target_rest"
+  | Version_T1 -> "Version_T1"
+  | Version_T2 -> "Version_T2"
+  | Version_P -> "Version_P"
+  | Version_Slash -> "Version_Slash"
+  | Version_11 -> "Version_11"
+  | Version_Dot -> "Version_Dot"
+  | Version_12 -> "Version_12"
+  | First_newline -> "First_newline"
+  | First_newline_after_cr -> "First_newline_after_cr"
+  | Field_name_first -> "Field_name_first"
+  | Field_name_rest -> "Field_name_rest"
+  | Field_value -> "Field_value"
+  | Space_before_content_length -> "Space_before_content_length"
+  | Content_length -> "Content_length"
+  | Space_after_content_length -> "Space_after_content_length"
+  | Header_newline -> "Header_newline"
+  | Newline_before_message_body -> "Newline_before_message_body"
+  | Message_body -> "Message_body"
+;;
+
 exception Step_error
 
 let step_error () = raise Step_error
@@ -237,9 +267,15 @@ let create on_request =
   }
 ;;
 
-exception Fail of state * string
+exception Feed_error of string
 
 let feed t c =
   try t.state <- step t.state t.aux c with
-  | Step_error -> raise (Fail (t.state, Char.escaped c))
+  | Step_error ->
+    raise
+      (Feed_error
+         (Printf.sprintf
+            "Request parsing failed on character '%c' in state '%s'"
+            c
+            (state_to_string t.state)))
 ;;

@@ -13,4 +13,7 @@ type request =
 type t
 
 val create : (request -> unit) -> t
+
+exception Feed_error of string
+
 val feed : t -> char -> unit
