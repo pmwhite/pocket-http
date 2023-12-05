@@ -64,7 +64,7 @@ let () =
     in
     let target = String.concat "/" target.path in
     printfn
-      "----------Got request:\n%s /%s\n%s\n----------"
+      "----- received request -----\n%s /%s\n%s\n----------------------------"
       method_
       target
       (String.escaped content))
