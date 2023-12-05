@@ -23,8 +23,7 @@ type state =
   | Method_rest
   | Space_after_method_first
   | Space_after_method_rest
-  | Path_element_first
-  | Path_element_rest
+  | Path_element
   | Space_after_target_first
   | Space_after_target_rest
   | Version_T1
@@ -52,8 +51,7 @@ let state_to_string (state : state) =
   | Method_rest -> "Method_rest"
   | Space_after_method_first -> "Space_after_method_first"
   | Space_after_method_rest -> "Space_after_method_rest"
-  | Path_element_first -> "Path_element_first"
-  | Path_element_rest -> "Path_element_rest"
+  | Path_element -> "Path_element"
   | Space_after_target_first -> "Space_after_target_first"
   | Space_after_target_rest -> "Space_after_target_rest"
   | Version_T1 -> "Version_T1"
@@ -79,6 +77,17 @@ let state_to_string (state : state) =
 exception Step_error
 
 let step_error () = raise Step_error
+
+let got_request (aux : aux) =
+  aux.on_request
+    { method_ = aux.method_
+    ; target = { path = aux.path }
+    ; content = Buffer.contents aux.buffer
+    };
+  aux.path <- [];
+  aux.content_length <- 0;
+  Buffer.clear aux.buffer
+;;
 
 let rec step (state : state) (aux : aux) (c : char) : state =
   match state with
@@ -107,23 +116,17 @@ let rec step (state : state) (aux : aux) (c : char) : state =
   | Space_after_method_rest ->
     (match c with
      | ' ' | '\t' -> Space_after_method_rest
-     | '/' -> Path_element_first
+     | '/' -> Path_element
      | _ -> step_error ())
-  | Path_element_first ->
+  | Path_element ->
     (match c with
      | 'a' .. 'z' | '0' .. '9' | '-' ->
        Buffer.add_char aux.buffer c;
-       Path_element_rest
-     | _ -> step_error ())
-  | Path_element_rest ->
-    (match c with
-     | 'a' .. 'z' | '0' .. '9' | '-' ->
-       Buffer.add_char aux.buffer c;
-       Path_element_rest
+       Path_element
      | '/' ->
        aux.path <- Buffer.contents aux.buffer :: aux.path;
        Buffer.clear aux.buffer;
-       Path_element_first
+       Path_element
      | _ ->
        aux.path <- Buffer.contents aux.buffer :: aux.path;
        Buffer.clear aux.buffer;
@@ -230,7 +233,12 @@ let rec step (state : state) (aux : aux) (c : char) : state =
      | _ -> step_error ())
   | Newline_before_message_body ->
     (match c with
-     | '\n' -> Message_body
+     | '\n' ->
+       if aux.content_length = 0
+       then (
+         got_request aux;
+         Method_first)
+       else Message_body
      | _ -> step_error ())
   | Message_body ->
     if aux.content_length > 0
@@ -239,14 +247,7 @@ let rec step (state : state) (aux : aux) (c : char) : state =
       Buffer.add_char aux.buffer c;
       Message_body)
     else (
-      aux.on_request
-        { method_ = aux.method_
-        ; target = { path = aux.path }
-        ; content = Buffer.contents aux.buffer
-        };
-      aux.path <- [];
-      aux.content_length <- 0;
-      Buffer.clear aux.buffer;
+      got_request aux;
       Method_first)
 ;;
 

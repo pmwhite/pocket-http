@@ -1,3 +1,5 @@
 S src
+S src/pocket_http.ml
+S src/pocket_http.mli
 S test
 PKG unix
